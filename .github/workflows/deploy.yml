@@ -33,10 +33,8 @@ jobs:
         id: check-stack
         run: |
           if aws cloudformation describe-stacks --stack-name my-typescript-app-stack &> /dev/null; then
-            echo "Stack exists"
             echo "stack_exists=true" >> $GITHUB_OUTPUT
           else
-            echo "Stack does not exist"
             echo "stack_exists=false" >> $GITHUB_OUTPUT
           fi
 
