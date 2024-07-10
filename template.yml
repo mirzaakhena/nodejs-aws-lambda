@@ -23,14 +23,14 @@ Resources:
       Role: !GetAtt LambdaExecutionRole.Arn
       Runtime: nodejs20.x
       Timeout: 30
-      Code:
-        ZipFile: |
-          exports.handler = async (event) => {
-            return {
-              statusCode: 200,
-              body: JSON.stringify('Placeholder Lambda function'),
-            };
-          };
+      # Code:
+      #   ZipFile: |
+      #     exports.handler = async (event) => {
+      #       return {
+      #         statusCode: 200,
+      #         body: JSON.stringify('Placeholder Lambda function'),
+      #       };
+      #     };
 
   ApiGateway:
     Type: AWS::ApiGateway::RestApi
@@ -47,10 +47,22 @@ Resources:
   ProxyMethod:
     Type: AWS::ApiGateway::Method
     Properties:
-      AuthorizationType: NONE
       HttpMethod: ANY
       ResourceId: !Ref ProxyResource
       RestApiId: !Ref ApiGateway
+      AuthorizationType: NONE
+      Integration:
+        IntegrationHttpMethod: POST
+        Type: AWS_PROXY
+        Uri: !Sub arn:aws:apigateway:${AWS::Region}:lambda:path/2015-03-31/functions/${LambdaFunction.Arn}/invocations
+
+  RootMethod:
+    Type: AWS::ApiGateway::Method
+    Properties:
+      HttpMethod: ANY
+      ResourceId: !GetAtt ApiGateway.RootResourceId
+      RestApiId: !Ref ApiGateway
+      AuthorizationType: NONE
       Integration:
         IntegrationHttpMethod: POST
         Type: AWS_PROXY
@@ -60,6 +72,7 @@ Resources:
     Type: AWS::ApiGateway::Deployment
     DependsOn:
       - ProxyMethod
+      - RootMethod
     Properties:
       RestApiId: !Ref ApiGateway
       StageName: prod
