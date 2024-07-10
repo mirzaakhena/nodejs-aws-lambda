@@ -47,22 +47,10 @@ Resources:
   ProxyMethod:
     Type: AWS::ApiGateway::Method
     Properties:
-      HttpMethod: ANY
+      AuthorizationType: NONE
+      HttpMethod: GET
       ResourceId: !Ref ProxyResource
       RestApiId: !Ref ApiGateway
-      AuthorizationType: NONE
-      Integration:
-        IntegrationHttpMethod: POST
-        Type: AWS_PROXY
-        Uri: !Sub arn:aws:apigateway:${AWS::Region}:lambda:path/2015-03-31/functions/${LambdaFunction.Arn}/invocations
-
-  RootMethod:
-    Type: AWS::ApiGateway::Method
-    Properties:
-      HttpMethod: ANY
-      ResourceId: !GetAtt ApiGateway.RootResourceId
-      RestApiId: !Ref ApiGateway
-      AuthorizationType: NONE
       Integration:
         IntegrationHttpMethod: POST
         Type: AWS_PROXY
@@ -72,7 +60,6 @@ Resources:
     Type: AWS::ApiGateway::Deployment
     DependsOn:
       - ProxyMethod
-      - RootMethod
     Properties:
       RestApiId: !Ref ApiGateway
       StageName: prod
