@@ -1,1 +1,13 @@
 aws cloudformation describe-stacks --stack-name my-typescript-app-stack
+
+
+echo '{"path": "/api/time", "httpMethod": "GET"}' | base64 | tr -d '\n'
+
+curl https://j51wvqta69.execute-api.us-east-1.amazonaws.com/prod/api/time
+curl https://j51wvqta69.execute-api.us-east-1.amazonaws.com/prod/api/hello
+
+
+
+
+
+aws lambda invoke --function-name my-typescript-app --payload eyJwYXRoIjogIi9hcGkvdGltZSIsICJodHRwTWV0aG9kIjogIkdFVCJ9Cg== output.json
