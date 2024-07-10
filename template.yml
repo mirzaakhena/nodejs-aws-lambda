@@ -1,18 +1,7 @@
-# AWS CloudFormation
-
 AWSTemplateFormatVersion: "2010-09-09"
-Description: "CloudFormation template for Lambda, API Gateway, and CI/CD pipeline"
-
-Parameters:
-  ApplicationName:
-    Type: String
-    Default: "MyTypescriptApp"
-  CodeCommitBranch:
-    Type: String
-    Default: "main"
+Description: "CloudFormation template for Lambda and API Gateway"
 
 Resources:
-  # IAM Role for Lambda
   LambdaExecutionRole:
     Type: AWS::IAM::Role
     Properties:
@@ -26,29 +15,19 @@ Resources:
       ManagedPolicyArns:
         - arn:aws:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole
 
-  # Lambda Function
   LambdaFunction:
     Type: AWS::Lambda::Function
     Properties:
-      FunctionName: !Ref ApplicationName
+      FunctionName: my-typescript-app
       Handler: index.handler
       Role: !GetAtt LambdaExecutionRole.Arn
-      Code:
-        ZipFile: |
-          exports.handler = async (event) => {
-            return {
-              statusCode: 200,
-              body: JSON.stringify('Hello from Lambda!'),
-            };
-          };
-      Runtime: nodejs14.x
+      Runtime: nodejs18.x
       Timeout: 30
 
-  # API Gateway
   ApiGateway:
     Type: AWS::ApiGateway::RestApi
     Properties:
-      Name: !Sub ${ApplicationName}-API
+      Name: my-typescript-app-api
 
   ApiGatewayRootMethod:
     Type: AWS::ApiGateway::Method
@@ -69,7 +48,6 @@ Resources:
       RestApiId: !Ref ApiGateway
       StageName: prod
 
-  # Lambda Permission for API Gateway
   LambdaApiGatewayPermission:
     Type: AWS::Lambda::Permission
     Properties:
@@ -78,169 +56,7 @@ Resources:
       Principal: apigateway.amazonaws.com
       SourceArn: !Sub arn:aws:execute-api:${AWS::Region}:${AWS::AccountId}:${ApiGateway}/*/ANY/
 
-  # CodeCommit Repository
-  CodeCommitRepo:
-    Type: AWS::CodeCommit::Repository
-    Properties:
-      RepositoryName: !Ref ApplicationName
-      RepositoryDescription: !Sub "CodeCommit repository for ${ApplicationName}"
-
-  # CodeBuild Project
-  CodeBuildProject:
-    Type: AWS::CodeBuild::Project
-    Properties:
-      Name: !Sub ${ApplicationName}-Build
-      ServiceRole: !GetAtt CodeBuildServiceRole.Arn
-      Artifacts:
-        Type: CODEPIPELINE
-      Environment:
-        Type: LINUX_CONTAINER
-        ComputeType: BUILD_GENERAL1_SMALL
-        Image: aws/codebuild/amazonlinux2-x86_64-standard:3.0
-      Source:
-        Type: CODEPIPELINE
-      TimeoutInMinutes: 10
-
-  # CodePipeline
-  CodePipeline:
-    Type: AWS::CodePipeline::Pipeline
-    Properties:
-      Name: !Sub ${ApplicationName}-Pipeline
-      RoleArn: !GetAtt CodePipelineServiceRole.Arn
-      ArtifactStore:
-        Type: S3
-        Location: !Ref PipelineBucket
-      Stages:
-        - Name: Source
-          Actions:
-            - Name: SourceAction
-              ActionTypeId:
-                Category: Source
-                Owner: AWS
-                Version: 1
-                Provider: CodeCommit
-              Configuration:
-                RepositoryName: !Ref ApplicationName
-                BranchName: !Ref CodeCommitBranch
-              OutputArtifacts:
-                - Name: SourceOutput
-              RunOrder: 1
-        - Name: Build
-          Actions:
-            - Name: BuildAction
-              ActionTypeId:
-                Category: Build
-                Owner: AWS
-                Version: 1
-                Provider: CodeBuild
-              InputArtifacts:
-                - Name: SourceOutput
-              OutputArtifacts:
-                - Name: BuildOutput
-              Configuration:
-                ProjectName: !Ref CodeBuildProject
-              RunOrder: 1
-        - Name: Deploy
-          Actions:
-            - Name: DeployAction
-              ActionTypeId:
-                Category: Deploy
-                Owner: AWS
-                Version: 1
-                Provider: Lambda
-              InputArtifacts:
-                - Name: BuildOutput
-              Configuration:
-                FunctionName: !Ref LambdaFunction
-              RunOrder: 1
-
-  # S3 Bucket for CodePipeline artifacts
-  PipelineBucket:
-    Type: AWS::S3::Bucket
-    Properties:
-      BucketName: !Sub ${ApplicationName}-pipeline-artifacts-${AWS::AccountId}
-      VersioningConfiguration:
-        Status: Enabled
-
-  # IAM Roles
-  CodeBuildServiceRole:
-    Type: AWS::IAM::Role
-    Properties:
-      AssumeRolePolicyDocument:
-        Version: "2012-10-17"
-        Statement:
-          - Effect: Allow
-            Principal:
-              Service: codebuild.amazonaws.com
-            Action: sts:AssumeRole
-      ManagedPolicyArns:
-        - arn:aws:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole
-      Policies:
-        - PolicyName: CodeBuildAccess
-          PolicyDocument:
-            Version: "2012-10-17"
-            Statement:
-              - Effect: Allow
-                Action:
-                  - s3:GetObject
-                  - s3:PutObject
-                  - s3:GetObjectVersion
-                Resource: !Sub ${PipelineBucket.Arn}/*
-              - Effect: Allow
-                Action:
-                  - logs:CreateLogGroup
-                  - logs:CreateLogStream
-                  - logs:PutLogEvents
-                Resource: "*"
-
-  CodePipelineServiceRole:
-    Type: AWS::IAM::Role
-    Properties:
-      AssumeRolePolicyDocument:
-        Version: "2012-10-17"
-        Statement:
-          - Effect: Allow
-            Principal:
-              Service: codepipeline.amazonaws.com
-            Action: sts:AssumeRole
-      Policies:
-        - PolicyName: CodePipelineAccess
-          PolicyDocument:
-            Version: "2012-10-17"
-            Statement:
-              - Effect: Allow
-                Action:
-                  - s3:GetObject
-                  - s3:GetObjectVersion
-                  - s3:GetBucketVersioning
-                  - s3:PutObject
-                Resource:
-                  - !Sub ${PipelineBucket.Arn}
-                  - !Sub ${PipelineBucket.Arn}/*
-              - Effect: Allow
-                Action:
-                  - codecommit:CancelUploadArchive
-                  - codecommit:GetBranch
-                  - codecommit:GetCommit
-                  - codecommit:GetUploadArchiveStatus
-                  - codecommit:UploadArchive
-                Resource: !GetAtt CodeCommitRepo.Arn
-              - Effect: Allow
-                Action:
-                  - codebuild:BatchGetBuilds
-                  - codebuild:StartBuild
-                Resource: !GetAtt CodeBuildProject.Arn
-              - Effect: Allow
-                Action:
-                  - lambda:InvokeFunction
-                  - lambda:ListFunctions
-                  - lambda:GetFunction
-                Resource: !GetAtt LambdaFunction.Arn
-
 Outputs:
   ApiGatewayUrl:
     Description: URL of the API Gateway endpoint
     Value: !Sub https://${ApiGateway}.execute-api.${AWS::Region}.amazonaws.com/prod/
-  CodeCommitRepoUrl:
-    Description: URL of the CodeCommit repository
-    Value: !GetAtt CodeCommitRepo.CloneUrlHttp
