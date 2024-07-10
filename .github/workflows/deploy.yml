@@ -22,22 +22,46 @@ jobs:
       - name: Build
         run: npm run build
 
-      - name: Deploy CloudFormation stack
-        uses: aws-actions/aws-cloudformation-github-deploy@v1
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v1
         with:
-          name: my-typescript-app-stack
-          template: template.yml
-          capabilities: CAPABILITY_IAM
-        env:
-          AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
-          AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-          AWS_REGION: "us-east-1" # Change this to your preferred region
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: us-east-1 # Change this to your preferred region
+
+      - name: Check if CloudFormation stack exists
+        id: check-stack
+        run: |
+          if aws cloudformation describe-stacks --stack-name my-typescript-app-stack &> /dev/null; then
+            echo "Stack exists"
+            echo "stack_exists=true" >> $GITHUB_OUTPUT
+          else
+            echo "Stack does not exist"
+            echo "stack_exists=false" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Create CloudFormation stack
+        if: steps.check-stack.outputs.stack_exists == 'false'
+        run: |
+          aws cloudformation create-stack \
+            --stack-name my-typescript-app-stack \
+            --template-body file://template.yml \
+            --capabilities CAPABILITY_IAM
+          aws cloudformation wait stack-create-complete --stack-name my-typescript-app-stack
+
+      - name: Update CloudFormation stack
+        if: steps.check-stack.outputs.stack_exists == 'true'
+        run: |
+          if ! aws cloudformation update-stack \
+            --stack-name my-typescript-app-stack \
+            --template-body file://template.yml \
+            --capabilities CAPABILITY_IAM; then
+            echo "No updates are to be performed on the stack."
+          else
+            aws cloudformation wait stack-update-complete --stack-name my-typescript-app-stack
+          fi
 
       - name: Deploy to Lambda
         run: |
           zip -j function.zip ./dist/*
           aws lambda update-function-code --function-name my-typescript-app --zip-file fileb://function.zip
-        env:
-          AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
-          AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-          AWS_REGION: "us-east-1" # Change this to your preferred region

@@ -1,3 +1,1 @@
-aws cloudformation create-stack --stack-name my-app-stack --template-body file://template.yml --capabilities CAPABILITY_IAM
-aws cloudformation describe-stacks --stack-name my-app-stack --query "Stacks[0].Outputs[?OutputKey=='CodeCommitRepoUrl'].OutputValue" --output text
-aws cloudformation delete-stack --stack-name my-typescript-app-stack
+aws cloudformation describe-stacks --stack-name my-typescript-app-stack
