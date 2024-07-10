@@ -1,5 +1,5 @@
 AWSTemplateFormatVersion: "2010-09-09"
-Description: "CloudFormation template for Lambda and API Gateway"
+Description: "CloudFormation template for Lambda and API Gateway with proxy resource"
 
 Resources:
   LambdaExecutionRole:
@@ -28,7 +28,7 @@ Resources:
           exports.handler = async (event) => {
             return {
               statusCode: 200,
-              body: JSON.stringify({ message: 'Hello from Lambda!' }),
+              body: JSON.stringify('Placeholder Lambda function'),
             };
           };
 
@@ -37,19 +37,19 @@ Resources:
     Properties:
       Name: my-typescript-app-api
 
-  ApiResource:
+  ProxyResource:
     Type: AWS::ApiGateway::Resource
     Properties:
       ParentId: !GetAtt ApiGateway.RootResourceId
-      PathPart: "test"
+      PathPart: "{proxy+}"
       RestApiId: !Ref ApiGateway
 
-  ApiMethod:
+  ProxyMethod:
     Type: AWS::ApiGateway::Method
     Properties:
       AuthorizationType: NONE
-      HttpMethod: GET
-      ResourceId: !Ref ApiResource
+      HttpMethod: ANY
+      ResourceId: !Ref ProxyResource
       RestApiId: !Ref ApiGateway
       Integration:
         IntegrationHttpMethod: POST
@@ -59,7 +59,7 @@ Resources:
   ApiGatewayDeployment:
     Type: AWS::ApiGateway::Deployment
     DependsOn:
-      - ApiMethod
+      - ProxyMethod
     Properties:
       RestApiId: !Ref ApiGateway
       StageName: prod
@@ -70,9 +70,9 @@ Resources:
       Action: lambda:InvokeFunction
       FunctionName: !Ref LambdaFunction
       Principal: apigateway.amazonaws.com
-      SourceArn: !Sub arn:aws:execute-api:${AWS::Region}:${AWS::AccountId}:${ApiGateway}/*/*/*
+      SourceArn: !Sub arn:aws:execute-api:${AWS::Region}:${AWS::AccountId}:${ApiGateway}/*/*
 
 Outputs:
   ApiGatewayUrl:
     Description: URL of the API Gateway endpoint
-    Value: !Sub https://${ApiGateway}.execute-api.${AWS::Region}.amazonaws.com/prod/test
+    Value: !Sub https://${ApiGateway}.execute-api.${AWS::Region}.amazonaws.com/prod/
