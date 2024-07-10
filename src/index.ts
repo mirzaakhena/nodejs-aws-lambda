@@ -1,3 +1,4 @@
+import { APIGatewayProxyHandler, APIGatewayProxyResult } from "aws-lambda";
 import express from "express";
 import serverless from "serverless-http";
 
@@ -21,6 +22,18 @@ app.use((req, res) => {
   res.status(404).json({ error: "Not Found" });
 });
 
-const handler = serverless(app);
+const serverlessHandler = serverless(app);
 
-export { handler };
+// Wrap the serverless handler to process API Gateway events
+export const handler: APIGatewayProxyHandler = async (event, context) => {
+  // Log the incoming event for debugging
+  console.log("Received event:", JSON.stringify(event, null, 2));
+
+  // Process the event with the serverless-http wrapper
+  const result = await serverlessHandler(event, context);
+
+  // Log the result for debugging
+  console.log("Handler result:", JSON.stringify(result, null, 2));
+
+  return result as APIGatewayProxyResult;
+};
