@@ -23,7 +23,15 @@ Resources:
       Role: !GetAtt LambdaExecutionRole.Arn
       Runtime: nodejs18.x
       Timeout: 30
-
+      Code:
+        ZipFile: |
+          exports.handler = async (event) => {
+            return {
+              statusCode: 200,
+              body: JSON.stringify('Placeholder Lambda function'),
+            };
+          };
+      
   ApiGateway:
     Type: AWS::ApiGateway::RestApi
     Properties:
