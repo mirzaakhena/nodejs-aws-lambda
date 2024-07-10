@@ -64,5 +64,8 @@ jobs:
       - name: Deploy to Lambda
         run: |
           npm ci --production
-          zip -r function.zip . -x '*.git*'
+          cp -r node_modules dist/
+          cd dist
+          zip -r ../function.zip .
+          cd ..
           aws lambda update-function-code --function-name my-typescript-app --zip-file fileb://function.zip
