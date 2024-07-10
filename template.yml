@@ -48,7 +48,7 @@ Resources:
     Type: AWS::ApiGateway::Method
     Properties:
       AuthorizationType: NONE
-      HttpMethod: ANY
+      HttpMethod: GET
       ResourceId: !Ref ProxyResource
       RestApiId: !Ref ApiGateway
       Integration:
