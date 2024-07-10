@@ -28,7 +28,7 @@ Resources:
           exports.handler = async (event) => {
             return {
               statusCode: 200,
-              body: JSON.stringify('Placeholder Lambda function'),
+              body: JSON.stringify({ message: 'Hello from Lambda!' }),
             };
           };
 
@@ -37,19 +37,19 @@ Resources:
     Properties:
       Name: my-typescript-app-api
 
-  ProxyResource:
+  ApiResource:
     Type: AWS::ApiGateway::Resource
     Properties:
       ParentId: !GetAtt ApiGateway.RootResourceId
-      PathPart: "{proxy+}"
+      PathPart: "test"
       RestApiId: !Ref ApiGateway
 
-  ProxyMethod:
+  ApiMethod:
     Type: AWS::ApiGateway::Method
     Properties:
       AuthorizationType: NONE
-      HttpMethod: ANY
-      ResourceId: !Ref ProxyResource
+      HttpMethod: GET
+      ResourceId: !Ref ApiResource
       RestApiId: !Ref ApiGateway
       Integration:
         IntegrationHttpMethod: POST
@@ -59,7 +59,7 @@ Resources:
   ApiGatewayDeployment:
     Type: AWS::ApiGateway::Deployment
     DependsOn:
-      - ProxyMethod
+      - ApiMethod
     Properties:
       RestApiId: !Ref ApiGateway
       StageName: prod
@@ -75,4 +75,4 @@ Resources:
 Outputs:
   ApiGatewayUrl:
     Description: URL of the API Gateway endpoint
-    Value: !Sub https://${ApiGateway}.execute-api.${AWS::Region}.amazonaws.com/prod/
+    Value: !Sub https://${ApiGateway}.execute-api.${AWS::Region}.amazonaws.com/prod/test
