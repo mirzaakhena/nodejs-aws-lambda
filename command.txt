@@ -7,3 +7,5 @@ curl https://3gwpsi0bmj.execute-api.us-east-1.amazonaws.com/prod/api/time
 curl https://3gwpsi0bmj.execute-api.us-east-1.amazonaws.com/prod/api/hello
 
 aws lambda invoke --function-name my-typescript-app --payload eyJwYXRoIjogIi9hcGkvdGltZSIsICJodHRwTWV0aG9kIjogIkdFVCJ9Cg== output.json
+
+aws cloudformation create-stack --stack-name HostedZone --template-body file://route53_acm.yml --capabilities CAPABILITY_IAM

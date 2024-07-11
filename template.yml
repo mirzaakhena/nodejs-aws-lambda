@@ -1,5 +1,11 @@
 AWSTemplateFormatVersion: "2010-09-09"
-Description: "CloudFormation template for Lambda and API Gateway with proxy resource"
+Description: "CloudFormation template for Lambda, API Gateway, Route53, and ACM"
+
+Parameters:
+  DomainName:
+    Type: String
+    Default: mirzaakhena.com
+    Description: The domain name for the hosted zone and certificate
 
 Resources:
   LambdaExecutionRole:
@@ -85,7 +91,64 @@ Resources:
       Principal: apigateway.amazonaws.com
       SourceArn: !Sub arn:aws:execute-api:${AWS::Region}:${AWS::AccountId}:${ApiGateway}/*/*
 
+  # New resources start here
+  HostedZone:
+    Type: AWS::Route53::HostedZone
+    Properties:
+      Name: !Ref DomainName
+
+  Certificate:
+    Type: AWS::CertificateManager::Certificate
+    Properties:
+      DomainName: !Ref DomainName
+      SubjectAlternativeNames:
+        - !Sub "*.${DomainName}"
+      ValidationMethod: DNS
+      DomainValidationOptions:
+        - DomainName: !Ref DomainName
+          HostedZoneId: !Ref HostedZone
+
+  ApiDomainName:
+    Type: AWS::ApiGateway::DomainName
+    Properties:
+      DomainName: !Sub "api.${DomainName}"
+      RegionalCertificateArn: !Ref Certificate
+      EndpointConfiguration:
+        Types:
+          - REGIONAL
+
+  ApiMapping:
+    Type: AWS::ApiGateway::BasePathMapping
+    Properties:
+      DomainName: !Ref ApiDomainName
+      RestApiId: !Ref ApiGateway
+      Stage: prod
+
+  ApiDnsRecord:
+    Type: AWS::Route53::RecordSet
+    Properties:
+      HostedZoneId: !Ref HostedZone
+      Name: !Sub "api.${DomainName}"
+      Type: A
+      AliasTarget:
+        DNSName: !GetAtt ApiDomainName.RegionalDomainName
+        HostedZoneId: !GetAtt ApiDomainName.RegionalHostedZoneId
+
 Outputs:
   ApiGatewayUrl:
     Description: URL of the API Gateway endpoint
     Value: !Sub https://${ApiGateway}.execute-api.${AWS::Region}.amazonaws.com/prod/
+  CustomDomainUrl:
+    Description: Custom domain URL for the API
+    Value: !Sub https://api.${DomainName}/
+  HostedZoneId:
+    Description: "Hosted Zone ID"
+    Value: !Ref HostedZone
+  NameServers:
+    Description: "Name Servers for the Hosted Zone"
+    Value: !Join
+      - ", "
+      - !GetAtt HostedZone.NameServers
+  CertificateArn:
+    Description: "ARN of the created certificate"
+    Value: !Ref Certificate
